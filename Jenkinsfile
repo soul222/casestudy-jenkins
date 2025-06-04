@@ -55,7 +55,7 @@ pipeline {
               # Install helm if not exists in Jenkins container
               if ! command -v helm &> /dev/null; then
                 curl https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz | tar xz
-                sudo mv linux-amd64/helm /usr/local/bin/
+                mv linux-amd64/helm /usr/local/bin/
               fi
               
               # Deploy with Helm
