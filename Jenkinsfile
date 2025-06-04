@@ -51,10 +51,34 @@ pipeline {
             echo "🚀 Deploying to Kubernetes via Helm..."
             sh '''
               export KUBECONFIG=$KUBE_FILE
+              
+              # Install helm if not exists in Jenkins container
+              if ! command -v helm &> /dev/null; then
+                curl https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz | tar xz
+                sudo mv linux-amd64/helm /usr/local/bin/
+              fi
+              
+              # Deploy with Helm
               helm upgrade --install $HELM_RELEASE ./helm \
                 --set image.repository=$IMAGE \
                 --set image.tag=$TAG \
-                --namespace $NAMESPACE --create-namespace
+                --namespace $NAMESPACE --create-namespace \
+                --wait
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Verify Deployment') {
+      steps {
+        withCredentials([file(credentialsId: "${KUBECONFIG_CRED}", variable: 'KUBE_FILE')]) {
+          script {
+            sh '''
+              export KUBECONFIG=$KUBE_FILE
+              echo "🔍 Checking deployment status..."
+              kubectl get pods -n $NAMESPACE
+              kubectl get services -n $NAMESPACE
             '''
           }
         }
