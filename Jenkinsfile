@@ -44,31 +44,43 @@ pipeline {
       }
     }
 
-    stage('Deploy to Kubernetes (Helm)') {
-      steps {
-        withCredentials([file(credentialsId: "${KUBECONFIG_CRED}", variable: 'KUBE_FILE')]) {
-          script {
-            echo "🚀 Deploying to Kubernetes via Helm..."
-            sh '''
-              export KUBECONFIG=$KUBE_FILE
-              
-              # Install helm if not exists in Jenkins container
-              if ! command -v helm &> /dev/null; then
-                curl https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz | tar xz
-                mv linux-amd64/helm /usr/local/bin/
-              fi
-              
-              # Deploy with Helm
-              helm upgrade --install $HELM_RELEASE ./helm \
-                --set image.repository=$IMAGE \
-                --set image.tag=$TAG \
-                --namespace $NAMESPACE --create-namespace \
-                --wait
-            '''
-          }
-        }
+   stage('Deploy to Kubernetes (Helm)') {
+  steps {
+    withCredentials([file(credentialsId: "${KUBECONFIG_CRED}", variable: 'KUBE_FILE')]) {
+      script {
+        echo "🚀 Deploying to Kubernetes via Helm..."
+        sh '''
+          export KUBECONFIG=$KUBE_FILE
+
+          # Buat direktori local untuk helm
+          mkdir -p /tmp/bin
+
+          # Install helm di /tmp/bin jika belum ada
+          if ! command -v helm &> /dev/null; then
+            curl -LO https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz
+            tar -xzvf helm-v3.12.0-linux-amd64.tar.gz -C /tmp
+            mv /tmp/linux-amd64/helm /tmp/bin/helm
+            chmod +x /tmp/bin/helm
+            export PATH=/tmp/bin:$PATH
+          else
+            echo "Helm already installed"
+          fi
+
+          # Pastikan PATH sudah diupdate
+          export PATH=/tmp/bin:$PATH
+
+          # Helm deploy
+          helm upgrade --install $HELM_RELEASE ./helm \
+            --set image.repository=$IMAGE \
+            --set image.tag=$TAG \
+            --namespace $NAMESPACE --create-namespace \
+            --wait
+        '''
       }
     }
+  }
+}
+
 
     stage('Verify Deployment') {
       steps {
